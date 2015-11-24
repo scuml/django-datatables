@@ -217,23 +217,37 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             data_name_key = 'columns[{0}][name]'.format(counter)
         return col_data
 
-    def filter_queryset(self, qs):
-        """ If search['value'] is provided then filter all searchable columns using istartswith
+    def filter_by_search(self, qs):
         """
-        # get global search value
+        Filter queryset as specified by search_fields
+        Searches on icontains unless otherwise specified
+        """
         search = self.request.GET.get('search[value]', None)
-        col_data = self.extract_datatables_column_data()
-        q = Q()
-        for col_no, col in enumerate(col_data):
-            # apply global search to all searchable columns
-            if search and col['searchable']:
-                q |= Q(**{'{0}__istartswith'.format(self.declared_fields[col_no].replace('.', '__')): search})
+        if search:
+            if getattr(self._meta, 'search_min_length', 0) <= len(search):
+                if hasattr(self._meta, "search_fields"):
+                    field_lookup_suffixes = (
+                        'exact', 'contains', 'startswith',
+                        'endswith', 'search', 'regex'
+                    )
+                    q = Q()
+                    for field_lookup in self._meta.search_fields:
+                        if not field_lookup.endswith(field_lookup_suffixes):
+                            # if no suffix provided, append "__icontains"
+                            field_lookup += '__icontains'
+                        q |= Q(**{field_lookup: search})
+                    qs = qs.filter(q)
 
-            # column specific filter
-            if col['search.value']:
-                qs = qs.filter(**{'{0}__istartswith'.format(self.declared_fields[col_no].replace('.', '__')): col['search.value']})
-        qs = qs.filter(q)
         return qs
+
+    def filter_by_filters(self, qs):
+        return qs
+
+    def filter_queryset(self, qs):
+        qs = self.filter_by_search(qs)
+        qs = self.filter_by_filters(qs)
+        return qs
+
 
     def get_values_list(self):
         """
