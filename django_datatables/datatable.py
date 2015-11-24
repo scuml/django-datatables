@@ -1,4 +1,6 @@
-# -*- coding: utf-8 -*-
+"""
+Datatable classes
+"""
 
 from collections import OrderedDict
 import inspect
@@ -18,10 +20,10 @@ from .mixins import JSONResponseView
 logger = logging.getLogger(__name__)
 
 
-
 class AttrDict(object):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
+
 
 class DeclarativeFieldsMetaclass(type):
     """
@@ -110,14 +112,12 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             titles.append(getattr(column, 'title', key.replace("_", " ").title()))
         return titles
 
-
     def get_column_by_index(self, index):
         """
         Returns the column key at a specified index
         """
         keys = self.declared_fields.keys()
         return keys[index]
-
 
     def get_index_by_key(self, key):
         """
@@ -126,32 +126,38 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         keys = self.declared_fields.keys()
         return keys.index(key)
 
-    def render_columns(self, rows):
+    def render_columns(self, row_dicts):
         """ Renders a column on a row
         """
+        fields = self.declared_fields.keys()
+        rendered_columns = []  # initialize return array
+        for i in range(len(row_dicts)):
+            rendered_columns.append([None] * len(fields))
 
-        keys = self.declared_fields.keys()
+        for ic, field in enumerate(fields):
+            column = self.declared_fields[field]
 
-        # Make rows writable
-        rows = [list(row) for row in rows]
-
-        # Call the render_column method for each field
-        for i, key in enumerate(keys):
-            column = self.declared_fields[key]
-            for row in rows:
-                row[i] = column.render_column(row[i])
+            # Call the render_column method for each field
+            for ir, row_dict in enumerate(row_dicts):
+                rendered_columns[ir][ic] = column.render_column(row_dict[field])
 
             # Call the render_{} method for each column in local class
-            method_name = "render_{}".format(key)
+            method_name = "render_{}".format(field)
             if hasattr(self, method_name):
                 method = getattr(self, method_name)
                 if callable(method):
-                    for row in rows:
-                        row[i] = method(row[i])
+                    for ir, row_dict in enumerate(row_dicts):
+                        rendered_columns[ir][ic] = method(row_dict[field])
 
+            if column.has_link():
+                # Call the render_link to wrap column in link tag
+                for ir, row_dict in enumerate(row_dicts):
+                    rendered_columns[ir][ic] = column.render_link(
+                        row_dict[field],
+                        column.get_reverse_args_from_values(row_dict),
+                    )
 
-        return rows
-
+        return rendered_columns
 
     def ordering(self, qs):
         """
@@ -235,11 +241,24 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         """
         return [getattr(column, "value", key) for key, column in self.declared_fields.items()]
 
+    def get_referenced_values(self):
+        """
+        Returns a list of values to retrieve
+        The values will need to be referenced but might not be displayed
+        """
+        referenced_values = []
+        for column in self.declared_fields.values():
+            referenced_values += column.get_referenced_values()
+        return referenced_values
+
     def prepare_results(self, qs):
+        values_to_get = set(self.get_values_list())
+        values_to_get = values_to_get.union(set(self.get_referenced_values()))
+        values_dicts = qs.values(*values_to_get)
+
+        rendered_values = self.render_columns(values_dicts)
         data = []
-        values_list = qs.values_list(*self.get_values_list())
-        values_list = self.render_columns(values_list)
-        for row in values_list:
+        for row in rendered_values:
             data.append(row)
         return data
 
@@ -258,7 +277,6 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
             qs = self.ordering(qs)
             qs = self.paging(qs)
-
             # prepare output data
             data = self.prepare_results(qs)
 
@@ -288,6 +306,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
 from django.template import Context
 from django.template.loader import select_template
+
 
 class Datatable(DatatableBase, JSONResponseView):
 
