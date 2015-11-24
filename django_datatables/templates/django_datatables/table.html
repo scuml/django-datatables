@@ -1,0 +1,20 @@
+<script>
+// jQueryless
+document.addEventListener("DOMContentLoaded", function(event) {
+    $('.datatable').DataTable(
+        {{datatable.datatable_config}}
+    );
+});
+</script>
+
+<table class="table table-striped datatable" data-ajax="{% url 'dev_study_list_json' %}"
+    data-server-side='true'
+    >
+
+    {# TypeError: undefined is not an object (evaluating 'aoColumns[ srcCol ].aDataSort') if not enough columns #}
+    <thead>
+    {% for column_title in datatable.get_column_titles %}
+        <th>{{column_title}}</th>
+    {% endfor %}
+    </thead>
+</table>
