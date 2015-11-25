@@ -112,7 +112,6 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             titles.append(column.title if column.title else key.replace("_", " ").title())
         return titles
 
-
     def get_values_list(self):
         """
         Returns a list of the values to retrieve from the ORM.
@@ -165,6 +164,9 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             # Call the render_column method for each field
             for ir, row_dict in enumerate(row_dicts):
                 rendered_columns[ir][ic] = column.render_column(row_dict.get(field))
+                rendered_columns[ir][ic] = column.render_column_using_values(
+                    rendered_columns[ir][ic], row_dict
+                )
 
             # Call the render_{} method for each column in local class
             method_name = "render_{}".format(field)
@@ -178,8 +180,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
                 # Call the render_link to wrap column in link tag
                 for ir, row_dict in enumerate(row_dicts):
                     rendered_columns[ir][ic] = column.render_link(
-                        rendered_columns[ir][ic],
-                        column.get_reverse_args_from_values(row_dict),
+                        rendered_columns[ir][ic], row_dict
                     )
 
         return rendered_columns
@@ -276,8 +277,6 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         qs = self.filter_by_filters(qs)
         return qs
 
-
-
     def prepare_results(self, qs):
         values_to_get = set(self.get_values_list())
         values_to_get = values_to_get.union(set(self.get_referenced_values()))
@@ -361,6 +360,10 @@ class Datatable(DatatableBase, JSONResponseView):
                     order_dir = 'desc'
                 order_index = self.get_index_by_key(order_col)
                 config['order'].append([order_index, order_dir])
+
+        # Initial Display Length
+        config['iDisplayLength'] = getattr(self._meta, 'initial_rows_displayed', 10)
+
         return mark_safe(dumps(config))
 
     def render(self):

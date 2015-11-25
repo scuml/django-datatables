@@ -27,44 +27,59 @@ class Column(object):
         """
         return value
 
-    def render_link(self, value, reverse_args):
+    def render_column_using_values(self, value, values_dict):
         """
-        Returns value wrapped in link tag as specified by link
+        Return a rendered value which need to reference the Model's values dict
         """
-        link = reverse(self.link, args=reverse_args)
-        return '<a href="{link}">{val}</a>'.format(link=link, val=value)
+        return value
 
     def get_referenced_values(self):
         """ Returns a list of values that will need to be referenced """
         values = []
         if self.has_link():  # link will need link_args
             values.extend(self.link_args)
+        if type(self) == CheckBoxColumn:  # CheckBoxColumn's "value" is a field
+            values.append(self.value)
         return values
+
+    def render_link(self, value, values_dict):
+        """
+        Returns value wrapped in link tag as specified by link
+        """
+        reverse_args = [values_dict[key] for key in self.link_args]
+        link = reverse(self.link, args=reverse_args)
+        return '<a href="{link}">{val}</a>'.format(link=link, val=value)
 
     def has_link(self):
         """ Returns True if column has link property set """
         return self.link is not None
-
-    def get_reverse_args_from_values(self, values_dict):
-        """
-        Return a list of link args
-        :param values_dict: one dict from Model.objects.values()
-        :return: list corresponding to link_args and the input values_dict
-        """
-        return [values_dict[key] for key in self.link_args]
 
 
 class TextColumn(Column):
     pass
 
 
+class CheckBoxColumn(Column):
+
+    def __init__(self, name=None, *args, **kwargs):
+        self.name = name
+        self.constant = True
+        super(CheckBoxColumn, self).__init__(*args, **kwargs)
+
+    def render_column_using_values(self, value, values_dict):
+        return '<input id="{id}" type="checkbox" name="{name}" value="{value}"></>'.format(
+            id='???',
+            name=self.name if self.name else '',
+            value=values_dict[self.value],
+        )
+
+
 class GlyphiconColumn(Column):
 
     def __init__(self, icon, *args, **kwargs):
         self.icon = icon
-
         self.constant = True
-        return super(GlyphiconColumn, self).__init__(*args, **kwargs)
+        super(GlyphiconColumn, self).__init__(*args, **kwargs)
 
     def render_column(self, value):
         return "<span class='glyphicon glyphicon-{}'></span>".format(self.icon)
@@ -75,7 +90,7 @@ class ConstantTextColumn(Column):
     def __init__(self, text, *args, **kwargs):
         self.text = text
         self.constant = True
-        return super(ConstantTextColumn, self).__init__(*args, **kwargs)
+        super(ConstantTextColumn, self).__init__(*args, **kwargs)
 
     def render_column(self, value):
         return self.text
