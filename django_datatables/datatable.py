@@ -109,10 +109,33 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         """
         titles = []
         for key, column in self.declared_fields.items():
-            titles.append(getattr(column, 'title', key.replace("_", " ").title()))
+            titles.append(column.title if column.title else key.replace("_", " ").title())
         return titles
 
-    def get_column_by_index(self, index):
+
+    def get_values_list(self):
+        """
+        Returns a list of the values to retrieve from the ORM.
+        Do not return columns marked as constant.
+        """
+        values = []
+        for key, column in self.declared_fields.items():
+            if getattr(column, 'constant', False):
+                continue
+            values.append(column.value if column.value else key)
+        return values
+
+    def get_referenced_values(self):
+        """
+        Returns a list of values to retrieve
+        The values will need to be referenced but might not be displayed
+        """
+        referenced_values = []
+        for column in self.declared_fields.values():
+            referenced_values += column.get_referenced_values()
+        return referenced_values
+
+    def get_field_by_index(self, index):
         """
         Returns the column key at a specified index
         """
@@ -136,10 +159,12 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
         for ic, field in enumerate(fields):
             column = self.declared_fields[field]
+            if column.value:
+                field = column.value
 
             # Call the render_column method for each field
             for ir, row_dict in enumerate(row_dicts):
-                rendered_columns[ir][ic] = column.render_column(row_dict[field])
+                rendered_columns[ir][ic] = column.render_column(row_dict.get(field))
 
             # Call the render_{} method for each column in local class
             method_name = "render_{}".format(field)
@@ -147,13 +172,13 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
                 method = getattr(self, method_name)
                 if callable(method):
                     for ir, row_dict in enumerate(row_dicts):
-                        rendered_columns[ir][ic] = method(row_dict[field])
+                        rendered_columns[ir][ic] = method(rendered_columns[ir][ic])
 
             if column.has_link():
                 # Call the render_link to wrap column in link tag
                 for ir, row_dict in enumerate(row_dicts):
                     rendered_columns[ir][ic] = column.render_link(
-                        row_dict[field],
+                        rendered_columns[ir][ic],
                         column.get_reverse_args_from_values(row_dict),
                     )
 
@@ -169,8 +194,11 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         for i, info in sorting_cols.items():
             column_index = int(info['column'])
             sort_dir = '-' if info['dir'] == 'desc' else ''
-            column = self.get_column_by_index(column_index)
-            order.append('{0}{1}'.format(sort_dir, column))
+            field = self.get_field_by_index(column_index)
+            column_key = self.declared_fields[field].value
+            if not column_key:
+                column_key = field
+            order.append('{0}{1}'.format(sort_dir, column_key))
 
         if order:
             return qs.order_by(*order)
@@ -249,21 +277,6 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         return qs
 
 
-    def get_values_list(self):
-        """
-        Returns a list of the values to retrieve for a values list
-        """
-        return [getattr(column, "value", key) for key, column in self.declared_fields.items()]
-
-    def get_referenced_values(self):
-        """
-        Returns a list of values to retrieve
-        The values will need to be referenced but might not be displayed
-        """
-        referenced_values = []
-        for column in self.declared_fields.values():
-            referenced_values += column.get_referenced_values()
-        return referenced_values
 
     def prepare_results(self, qs):
         values_to_get = set(self.get_values_list())
@@ -332,6 +345,8 @@ class Datatable(DatatableBase, JSONResponseView):
         # Column config
         for key, column in self.declared_fields.items():
             column_config = dict()
+            if column.css_class:
+                column_config['className'] = column.css_class
             if key not in self._meta.order_columns:
                 column_config['orderable'] = False
             config['columns'].append(column_config)

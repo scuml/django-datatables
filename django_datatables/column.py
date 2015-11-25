@@ -10,9 +10,11 @@ class Column(object):
     # Tracks each time a Field instance is created. Used to retain order.
     creation_counter = 0
 
-    def __init__(self, label=None, link=None, link_args=None):
-        self.label = label
+    def __init__(self, title=None, css_class=None, value=None, link=None, link_args=None):
+        self.title = title
+        self.value = value
         self.link = link
+        self.css_class = css_class
         self.link_args = link_args or []
 
         # Increase the creation counter, and save our local copy.
@@ -54,6 +56,29 @@ class Column(object):
 
 class TextColumn(Column):
     pass
+
+
+class GlyphiconColumn(Column):
+
+    def __init__(self, icon, *args, **kwargs):
+        self.icon = icon
+
+        self.constant = True
+        return super(GlyphiconColumn, self).__init__(*args, **kwargs)
+
+    def render_column(self, value):
+        return "<span class='glyphicon glyphicon-{}'></span>".format(self.icon)
+
+
+class ConstantTextColumn(Column):
+
+    def __init__(self, text, *args, **kwargs):
+        self.text = text
+        self.constant = True
+        return super(ConstantTextColumn, self).__init__(*args, **kwargs)
+
+    def render_column(self, value):
+        return self.text
 
 
 class DateColumn(Column):
