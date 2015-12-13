@@ -15,7 +15,7 @@ Quick Setup
 -----
 Download the library and place it somewhere accessable in your PYTHONPATH.  The following is the most basic possible example to demonstrate how simple it is to get up and running.  In the following examples, all work is done exclusively in the view.
 
-** views.py **
+**views.py**
 
     from django_datatables.datatable import *
     from django_datatables import column
@@ -32,7 +32,7 @@ Download the library and place it somewhere accessable in your PYTHONPATH.  The 
             {"datatable": datatable}
         )
 
-** urls.py **
+**urls.py**
 
 Add the following line to urls.py.
 
@@ -46,21 +46,21 @@ Add the following line to urls.py.
 Building Up
 -----------
 
-** Custom Title/Value **
+**Custom Title/Value**
 
 In the example shown, the code_name, as the variable name is automatically used to fetch the field and then used as the header for the column.  There will often be cases where the variable name will not coincide to either of these and can be overritten with the following:
 
     created_date = column.TextColumn(title='Made on')
     scientist = column.TextColumn(value='scientist__scientist_name')
 
-** CSS Class **
+**CSS Class**
 
 A css class to apply to each cell in the column.
 
     scientist = column.TextColumn(css_class='text-danger')
 
 
-** Joined tables **
+**Joined tables**
 
 Fields in joined tables are accessed using the same syntax used in django.
 
@@ -81,23 +81,23 @@ Meta
 
     model = Study
 
-** order_columns**: a list of the columns that can be sorted
+**order_columns**: a list of the columns that can be sorted
 
     order_columns = ['study_name', 'created_date', 'modified_date', 'scientist']
 
-** initial_order**: the inital sort of the table
+**initial_order**: the inital sort of the table
 
     initial_order = ['created_date', 'scientist']
 
-** search_fields ** the fields that the search box will search for content.  This can be more finely controlled in the filter_by_search() method.
+**search_fields**the fields that the search box will search for content.  This can be more finely controlled in the filter_by_search() method.
 
     search_fields = ['study_name', 'code_name', 'scientist__scientist_name']
 
-** title **: The title of the report.  Only used for the filename and sheet name of the excel export.
+**title**: The title of the report.  Only used for the filename and sheet name of the excel export.
 
     title = "Study List"
 
-** export_to_excel **: If openpyxl is installed and set to true, will display a link to download an excel file containing all rows in the table.
+**export_to_excel**: If openpyxl is installed and set to true, will display a link to download an excel file containing all rows in the table.
 
     export_to_excel = True
 
