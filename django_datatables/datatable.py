@@ -398,7 +398,7 @@ class Datatable(DatatableBase, JSONResponseView):
         """
         template = select_template(['django_datatables/table.html'])
         context = Context({
-            'can_export_to_excel': self._meta.export_to_excel,
+            'can_export_to_excel': getattr(self._meta, 'export_to_excel', False),
             'module': self.__module__,
             'name': self.__class__.__name__,
             'datatable': self,
