@@ -13,7 +13,7 @@ The django datatables library makes creating tables that make use of the datatab
 
 Quick Setup
 -----
-Download the library and place it somewhere accessable in your PYTHONPATH.  The following is the most basic possible example to demonstrate how simple it is to get up and running.  In the following examples, all work is done exclusively in the view.
+Download the library and place it somewhere accessable in your PYTHONPATH.  The following is a basic example to demonstrate the ease to get up and running.
 
 **views.py**
 
