@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -10,6 +11,8 @@ from django.utils.functional import Promise
 from django.utils.translation import ugettext as _
 from django.utils.cache import add_never_cache_headers
 from django.views.generic.base import TemplateView
+
+from .excel import ExcelWriter
 
 import logging
 logger = logging.getLogger(__name__)
@@ -47,6 +50,24 @@ class JSONResponseMixin(object):
     def get(self, request, *args, **kwargs):
         self.request = request
         response = None
+
+        if request.GET.get("export") == "excel":
+            headers = self.get_column_titles()
+            rows = self.get_data()
+            title = getattr(self._meta, "title", "Sheet")
+
+            xlwriter = ExcelWriter()
+            xlwriter.add_headers(title, headers)
+            for row in rows:
+                xlwriter.add_row(title, dict(zip(headers, row)))
+
+            return xlwriter.download(
+                '{}-{}.xlsx'.format(
+                    title, datetime.now().strftime("%Y-%m-%d %H%m")
+                )
+            )
+
+            return HttpResponse(response)
 
         try:
             func_val = self.get_context_data(**kwargs)

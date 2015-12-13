@@ -33,7 +33,6 @@ class DeclarativeFieldsMetaclass(type):
 
     def __new__(mcs, name, bases, attrs):
 
-
         attr_meta = attrs.pop('Meta', None)
 
         # Collect fields from current class.
@@ -288,9 +287,33 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             data.append(row)
         return data
 
-    def get_context_data(self, *args, **kwargs):
+    def get_data(self):
+        """
+        Gets all data, unpaged, as a list of dicts.
+        """
         try:
+            qs = self.get_initial_queryset()
+            qs = self.filter_queryset(qs)
+            qs = self.ordering(qs)
+            data = self.prepare_results(qs)
+        except Exception as e:
+            logger.exception(str(e))
 
+            if settings.DEBUG:
+                import sys
+                from django.views.debug import ExceptionReporter
+                reporter = ExceptionReporter(None, *sys.exc_info())
+                text = "\n" + reporter.get_traceback_text()
+            else:
+                text = "\nAn error occured while processing an AJAX request."
+
+            data = {'error': text}
+        return data
+
+
+    def get_context_data(self):
+
+        try:
             qs = self.get_initial_queryset()
 
             # number of records before filtering
@@ -337,6 +360,9 @@ from django.template.loader import select_template
 class Datatable(DatatableBase, JSONResponseView):
 
     def datatable_config(self):
+        """
+        Returns the json config for the datatables init method in javascript
+        """
         config = dict(
             columns=list()
         )
@@ -367,9 +393,15 @@ class Datatable(DatatableBase, JSONResponseView):
         return mark_safe(dumps(config))
 
     def render(self):
+        """
+        Render the javascript and html to create the datatable
+        """
         template = select_template(['django_datatables/table.html'])
         context = Context({
-            "datatable": self,
+            'can_export_to_excel': self._meta.export_to_excel,
+            'module': self.__module__,
+            'name': self.__class__.__name__,
+            'datatable': self,
         })
         template_content = template.render(context)
         return mark_safe(template_content)

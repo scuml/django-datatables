@@ -7,7 +7,12 @@ document.addEventListener("DOMContentLoaded", function(event) {
 });
 </script>
 
-<table class="table table-striped datatable" data-ajax="{% url 'dev_study_list_json' %}"
+    {% if can_export_to_excel %}
+        <a href="{% url 'datatable_manager' %}?module={{module}}&name={{name}}&export=excel">Excel</a>
+    {% endif %}
+
+
+<table class="table table-striped datatable" data-ajax="{% url 'datatable_manager' %}?module={{module}}&name={{name}}"
     data-server-side='true'
     >
 
