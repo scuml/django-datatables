@@ -7,7 +7,7 @@ import inspect
 import logging
 from json import dumps
 
-from querystring_parser.parser import parse
+from pyquerystring import parse
 
 from django.conf import settings
 from django.db.models import Q
@@ -101,7 +101,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         if self.request.method == 'POST':
             return self.request.POST
         else:
-            return parse(self.request.META.get('QUERY_STRING'))
+            return parse(self.request.GET)
 
     def get_column_titles(self):
         """ Return list of column titles for the template engine
@@ -191,7 +191,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         order = list()
 
         sorting_cols = self._querydict.get('order', {})
-        for i, info in sorting_cols.items():
+        for info in sorting_cols:
             column_index = int(info['column'])
             sort_dir = '-' if info['dir'] == 'desc' else ''
             field = self.get_field_by_index(column_index)

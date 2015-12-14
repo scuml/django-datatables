@@ -50,7 +50,7 @@ class JSONResponseMixin(object):
     def get(self, request, *args, **kwargs):
         self.request = request
         response = None
-
+        func_val = self.get_context_data(**kwargs)
         if request.GET.get("export") == "excel":
             headers = self.get_column_titles()
             rows = self.get_data()
