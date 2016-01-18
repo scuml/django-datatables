@@ -3,7 +3,6 @@ Datatable classes
 """
 
 from collections import OrderedDict
-import inspect
 import logging
 from json import dumps
 
@@ -58,7 +57,7 @@ class DeclarativeFieldsMetaclass(type):
             for key, value in meta.__dict__.items():
                 setattr(base_meta, key, value)
 
-            new_class.add_to_class('_meta', base_meta)
+            setattr(new_class, '_meta', base_meta)
 
 
         # Walk through the MRO.
@@ -77,14 +76,6 @@ class DeclarativeFieldsMetaclass(type):
         new_class.declared_fields = declared_fields
 
         return new_class
-
-
-    def add_to_class(cls, name, value):
-        # We should call the contribute_to_class method only if it's bound
-        if not inspect.isclass(value) and hasattr(value, 'contribute_to_class'):
-            value.contribute_to_class(cls, name)
-        else:
-            setattr(cls, name, value)
 
 
 class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
