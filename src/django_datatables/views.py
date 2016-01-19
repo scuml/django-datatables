@@ -1,4 +1,4 @@
-from development.views import *
+from .views import *
 
 import importlib
 

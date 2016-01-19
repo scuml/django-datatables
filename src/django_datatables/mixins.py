@@ -12,7 +12,11 @@ from django.utils.translation import ugettext as _
 from django.utils.cache import add_never_cache_headers
 from django.views.generic.base import TemplateView
 
-from .excel import ExcelWriter
+try:
+    from .excel import ExcelWriter
+except ImportError:
+    ExcelWriter = None
+
 
 import logging
 logger = logging.getLogger(__name__)

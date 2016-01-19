@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 
 import os
 
+import sys
+sys.path.insert(1, '../src')
+
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -37,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_datatables',
+    'sample',
 ]
 
 MIDDLEWARE_CLASSES = [
@@ -67,9 +73,6 @@ TEMPLATES = [
         },
     },
 ]
-
-
-WSGI_APPLICATION = 'conf.wsgi.application'
 
 
 # Database

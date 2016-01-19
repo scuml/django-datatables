@@ -344,7 +344,6 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         return ret
 
 
-from django.template import Context
 from django.template.loader import select_template
 
 
@@ -388,11 +387,11 @@ class Datatable(DatatableBase, JSONResponseView):
         Render the javascript and html to create the datatable
         """
         template = select_template(['django_datatables/table.html'])
-        context = Context({
-            'can_export_to_excel': getattr(self._meta, 'export_to_excel', False),
-            'module': self.__module__,
-            'name': self.__class__.__name__,
-            'datatable': self,
-        })
+        context = dict(
+            can_export_to_excel=getattr(self._meta, 'export_to_excel', False),
+            module=self.__module__,
+            name=self.__class__.__name__,
+            datatable=self,
+        )
         template_content = template.render(context)
         return mark_safe(template_content)
