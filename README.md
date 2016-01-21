@@ -112,6 +112,16 @@ To pull data from multiple fields into one column, declare the column as a `Stri
 
 ```
 
+Other Querysets
+---------------
+
+The initial queryset can be overridden if a more complex query is needed, or if a default filter needs to be in place.
+
+```python
+   def get_initial_queryset(self, request):
+        return Employee.objects.filter(manager=request.user)
+```
+
 Meta
 ----
 
@@ -191,8 +201,22 @@ The following column types are available in the django_datatables.column module.
 **DateColumn**: Renders a date in Y-m-d format.
 
 
+Permissions
+-----------
+
+It's important to not just lock down the view, but even more so, the ajax call that retrieves the data.  Fortunately, authentication is easily handled with mixins.  Django 1.9 ships with LoginRequiredMixin, UserPassesTestMixin, and PermissionRequiredMixin which handle most use cases.  Ensure the permission-related mixins are stated first.
+
+[Django Permission Mixin Documentation](https://docs.djangoproject.com/en/1.9/topics/auth/default/#the-loginrequired-mixin)
+
+
+```python
+    from django.contrib.auth.mixins import LoginRequiredMixin
+
+    class EmployeeListDatatable(LoginRequiredMixin, datatable.Datatable):
+        ...
+```
+
 *To Do*
 -------
 
 * Attach a django form to filter the table.
-* Simple way to enforce security (e.g. login_required)
