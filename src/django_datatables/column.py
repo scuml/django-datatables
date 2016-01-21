@@ -63,7 +63,7 @@ class CheckBoxColumn(Column):
 
     def __init__(self, name=None, *args, **kwargs):
         self.name = name
-        self.constant = True
+        self.db_independant = True
         super(CheckBoxColumn, self).__init__(*args, **kwargs)
 
     def render_column_using_values(self, value, values_dict):
@@ -78,7 +78,7 @@ class GlyphiconColumn(Column):
 
     def __init__(self, icon, *args, **kwargs):
         self.icon = icon
-        self.constant = True
+        self.db_independant = True
         super(GlyphiconColumn, self).__init__(*args, **kwargs)
 
     def render_column(self, value):
@@ -89,7 +89,7 @@ class ConstantTextColumn(Column):
 
     def __init__(self, text, *args, **kwargs):
         self.text = text
-        self.constant = True
+        self.db_independant = True
         super(ConstantTextColumn, self).__init__(*args, **kwargs)
 
     def render_column(self, value):
@@ -97,6 +97,18 @@ class ConstantTextColumn(Column):
 
 
 class DateColumn(Column):
-
+    """
+    Renders a date in Y-m-d format
+    """
     def render_column(self, value):
-        return value.strftime("%Y-%b-%d").upper()
+        return value.strftime("%Y-%m-%d").upper()
+
+
+class StringColumn(Column):
+    """
+    Does not ask the database for a column.  Used to custom render
+    values from other columns.
+    """
+    def __init__(self, *args, **kwargs):
+        self.db_independant = True
+        super(StringColumn, self).__init__(*args, **kwargs)

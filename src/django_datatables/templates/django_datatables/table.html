@@ -8,11 +8,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
 </script>
 
     {% if can_export_to_excel %}
-        <a href="{% url 'datatable_manager' %}?module={{module}}&name={{name}}&export=excel">Excel</a>
+        <a href="{% url 'django_datatables:datatable_manager' %}?module={{module}}&name={{name}}&export=excel">Excel</a>
     {% endif %}
 
 
-<table class="table table-striped datatable" data-ajax="{% url 'datatable_manager' %}?module={{module}}&name={{name}}"
+<table class="table table-striped datatable" data-ajax="{% url 'django_datatables:datatable_manager' %}?module={{module}}&name={{name}}"
     data-server-side='true'
     >
 

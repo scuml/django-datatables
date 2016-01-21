@@ -51,6 +51,4 @@ class TestViews(TestCase):
         # Fetch the ajax
         # Should be have somethin'
         datatable = self.get_datatable(response)
-        print datatable
         self.assertEqual(datatable['recordsTotal'], 3)
-

@@ -19,9 +19,32 @@ from .mixins import JSONResponseView
 logger = logging.getLogger(__name__)
 
 
-class AttrDict(object):
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+class AttrDict(dict):
+    marker = object()
+
+    def __init__(self, value=None):
+        if value is None:
+            pass
+        elif isinstance(value, dict):
+            for key in value:
+                self.__setitem__(key, value[key])
+        else:
+            raise TypeError('expected dict')
+
+    def __setitem__(self, key, value):
+        if isinstance(value, dict) and not isinstance(value, AttrDict):
+            value = AttrDict(value)
+        super(AttrDict, self).__setitem__(key, value)
+
+    def __getitem__(self, key):
+        found = self.get(key, AttrDict.marker)
+        if found is AttrDict.marker:
+            found = AttrDict()
+            super(AttrDict, self).__setitem__(key, found)
+        return found
+
+    __setattr__ = __setitem__
+    __getattr__ = __getitem__
 
 
 class DeclarativeFieldsMetaclass(type):
@@ -85,7 +108,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
     class Meta:
         order_columns = []
         max_display_length = 100  # max limit of records returned, do not allow to kill our server by huge sets of data
-
+        extra_fields = []
 
     @property
     def _querydict(self):
@@ -105,13 +128,14 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
     def get_values_list(self):
         """
         Returns a list of the values to retrieve from the ORM.
-        Do not return columns marked as constant.
+        Do not return columns marked as db_independant.
         """
         values = []
         for key, column in self.declared_fields.items():
-            if getattr(column, 'constant', False):
+            if getattr(column, 'db_independant', False):
                 continue
             values.append(column.value if column.value else key)
+        values.extend(self._meta.extra_fields)
         return values
 
     def get_referenced_values(self):
@@ -164,7 +188,11 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
                 method = getattr(self, method_name)
                 if callable(method):
                     for ir, row_dict in enumerate(row_dicts):
-                        rendered_columns[ir][ic] = method(rendered_columns[ir][ic])
+                        if getattr(column, 'db_independant', False):
+                            # send row to db_indepenants
+                            rendered_columns[ir][ic] = method(row_dict)
+                        else:
+                            rendered_columns[ir][ic] = method(rendered_columns[ir][ic])
 
             if column.has_link():
                 # Call the render_link to wrap column in link tag

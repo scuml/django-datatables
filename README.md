@@ -97,6 +97,21 @@ Links support django's URL dispatcher.  Just add the URL name to the link attrib
     code_name = column.TextColumn(link='edit_study', link_args=['slug'])
 ```
 
+**Data from multiple fields**
+
+To pull data from multiple fields into one column, declare the column as a `StringColumn`.  If needed, add the fields to be requested from the database in the `Meta.extra_fields` attribute.  Finally, render the desired with the render_* method.
+
+```python
+    name = column.StringColumn()
+    class Meta:
+        model = Employee
+        extra_fields = ('first_name', 'last_name')
+    def render_name(self, row):
+        return "{} {}".format(row['first_name'], row['last_name']).strip()
+
+
+```
+
 Meta
 ----
 
@@ -163,13 +178,15 @@ Columns
 
 The following column types are available in the django_datatables.column module.
 
-**TextColumn**: A standard column that will display the contents of a row.
+**TextColumn**: A standard column that will display the contents of a single field.
+
+**ConstantTextColumn(text)**: Will display text independant of the database.  Ex: Edit, or Delete
+
+**StringColumn**: A column that will render text using multiple fields.  Request the data with `Meta.extra_fields` and format the text with the render_* method.
 
 **CheckBoxColumn**: Renders a checkbox.
 
 **GlyphiconColumn(icon)**: Displays an icon from bootstrap's v3 glyphicon set.
-
-**ContstantTextColumn(text)**: Will display text independant of the database.  Ex: Edit, or Delete
 
 **DateColumn**: Renders a date in Y-m-d format.
 
