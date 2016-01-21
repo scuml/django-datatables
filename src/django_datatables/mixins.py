@@ -54,7 +54,7 @@ class JSONResponseMixin(object):
     def get(self, request, *args, **kwargs):
         self.request = request
         response = None
-        func_val = self.get_context_data(**kwargs)
+        func_val = self.get_context_data(request)
         if request.GET.get("export") == "excel":
             headers = self.get_column_titles()
             rows = self.get_data()
@@ -74,7 +74,6 @@ class JSONResponseMixin(object):
             return HttpResponse(response)
 
         try:
-            func_val = self.get_context_data(**kwargs)
             if not self.is_clean:
                 assert isinstance(func_val, dict)
                 response = dict(func_val)

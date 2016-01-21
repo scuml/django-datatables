@@ -237,7 +237,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
         return qs[start:offset]
 
-    def get_initial_queryset(self):
+    def get_initial_queryset(self, request):
         if not self._meta.model:
             raise NotImplementedError("Need to provide a model or implement get_initial_queryset!")
         return self._meta.model.objects.all()
@@ -330,10 +330,10 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         return data
 
 
-    def get_context_data(self):
+    def get_context_data(self, request):
 
         try:
-            qs = self.get_initial_queryset()
+            qs = self.get_initial_queryset(request)
 
             # number of records before filtering
             total_records = qs.count()

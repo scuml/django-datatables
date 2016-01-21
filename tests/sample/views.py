@@ -12,9 +12,13 @@ class EmployeeListDatatable(datatable.Datatable):
     def render_name(self, row):
         return "{} {}".format(row['first_name'], row['last_name']).strip()
 
+    def get_initial_queryset(self, request):
+        return Employee.objects.filter(manager__last_name=request.user)
+
     class Meta:
         model = Employee
         extra_fields = ('first_name', 'last_name')
+
 
 def employee_list(request):
     datatable = EmployeeListDatatable()
