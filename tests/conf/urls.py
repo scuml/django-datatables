@@ -17,6 +17,6 @@ from django.conf.urls import url, include
 from sample import views
 
 urlpatterns = [
-    url(r'^$', views.employee_list),
+    url(r'^$', views.employee_list, name='employee_list'),
     url(r'^__django_datatables__/', include('django_datatables.urls')),
 ]

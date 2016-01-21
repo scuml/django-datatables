@@ -15,6 +15,26 @@ Quick Setup
 -----
 Download the library and place it somewhere accessable in your PYTHONPATH.  The following is a basic example to demonstrate the ease to get up and running.
 
+**settings.py**
+
+Add `django_datables` to the `INSTALLED_APPS` setting.
+
+```python
+INSTALLED_APPS = [
+    ...
+    'django_datatables',
+    ...
+]
+```
+
+**urls.py**
+
+Add the following line to urls.py.
+
+```python
+    url(r'^__django_datatables__/', include('django_datatables.urls')),
+```
+
 **views.py**
 
 ```python
@@ -34,13 +54,6 @@ Download the library and place it somewhere accessable in your PYTHONPATH.  The 
         )
 ```
 
-**urls.py**
-
-Add the following line to urls.py.
-
-```python
-    url(r'^__django_datatables__/', include('django_datatables.urls')),
-```
 
 **Template**
 
