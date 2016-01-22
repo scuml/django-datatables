@@ -18,5 +18,6 @@ from sample import views
 
 urlpatterns = [
     url(r'^$', views.employee_list, name='employee_list'),
+    url(r'^secure/$', views.secure_employee_list, name='secure_employee_list'),
     url(r'^__django_datatables__/', include('django_datatables.urls')),
 ]
