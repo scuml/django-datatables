@@ -24,6 +24,7 @@ class SecureEmployeeListDatatable(LoginRequiredMixin, EmployeeListDatatable):
     def get_initial_queryset(self, request):
         return Employee.objects.filter(first_name="Fred")
 
+
 def employee_list(request):
     datatable = EmployeeListDatatable()
     return render(request, 'main.html',

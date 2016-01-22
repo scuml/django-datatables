@@ -7,16 +7,13 @@ document.addEventListener("DOMContentLoaded", function(event) {
 });
 </script>
 
-    {% if can_export_to_excel %}
-        <a href="{% url 'django_datatables:datatable_manager' %}?module={{module}}&name={{name}}&export=excel">Excel</a>
-    {% endif %}
-
+{% if can_export_to_excel %}
+    <a href="{% url 'django_datatables:datatable_manager' %}?module={{module}}&name={{name}}&export=excel">Excel</a>
+{% endif %}
 
 <table class="table table-striped datatable" data-ajax="{% url 'django_datatables:datatable_manager' %}?module={{module}}&name={{name}}"
     data-server-side='true'
     >
-
-    {# TypeError: undefined is not an object (evaluating 'aoColumns[ srcCol ].aDataSort') if not enough columns #}
     <thead>
     {% for column_title in datatable.get_column_titles %}
         <th>{{column_title}}</th>

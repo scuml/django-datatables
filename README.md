@@ -204,10 +204,10 @@ The following column types are available in the django_datatables.column module.
 Permissions
 -----------
 
-It's important to not just lock down the view, but even more so, the ajax call that retrieves the data.  Fortunately, authentication is easily handled with mixins.  Django 1.9 ships with LoginRequiredMixin, UserPassesTestMixin, and PermissionRequiredMixin which handle most use cases.  Ensure the permission-related mixins are stated first.
+It's important to not just lock down the view, but also the ajax call that retrieves the data.  Fortunately, authentication is easily handled with mixins.  Django 1.9 ships with LoginRequiredMixin, UserPassesTestMixin, and PermissionRequiredMixin which handle most use cases.  Ensure the permission-related mixins are stated first.
 
-[Django Permission Mixin Documentation](https://docs.djangoproject.com/en/1.9/topics/auth/default/#the-loginrequired-mixin)
-
+More information regarding mixins can be found at the official
+[django authentication doc](https://docs.djangoproject.com/en/1.9/topics/auth/default/#the-loginrequired-mixin).
 
 ```python
     from django.contrib.auth.mixins import LoginRequiredMixin
@@ -220,3 +220,4 @@ It's important to not just lock down the view, but even more so, the ajax call t
 -------
 
 * Attach a django form to filter the table.
+* Documentation to customize templates
