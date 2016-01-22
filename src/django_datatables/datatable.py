@@ -18,34 +18,8 @@ from .mixins import JSONResponseView
 
 logger = logging.getLogger(__name__)
 
-
-class AttrDict(dict):
-    marker = object()
-
-    def __init__(self, value=None):
-        if value is None:
-            pass
-        elif isinstance(value, dict):
-            for key in value:
-                self.__setitem__(key, value[key])
-        else:
-            raise TypeError('expected dict')
-
-    def __setitem__(self, key, value):
-        if isinstance(value, dict) and not isinstance(value, AttrDict):
-            value = AttrDict(value)
-        super(AttrDict, self).__setitem__(key, value)
-
-    def __getitem__(self, key):
-        found = self.get(key, AttrDict.marker)
-        if found is AttrDict.marker:
-            found = AttrDict()
-            super(AttrDict, self).__setitem__(key, found)
-        return found
-
-    __setattr__ = __setitem__
-    __getattr__ = __getitem__
-
+class AttrDict(object):
+    pass
 
 class DeclarativeFieldsMetaclass(type):
     """
@@ -407,6 +381,7 @@ class Datatable(DatatableBase, JSONResponseView):
 
         # Initial Display Length
         config['iDisplayLength'] = getattr(self._meta, 'initial_rows_displayed', 10)
+        config['serverSide'] = getattr(self._meta, 'server_side', True)
 
         return mark_safe(dumps(config))
 

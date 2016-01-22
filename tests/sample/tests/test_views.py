@@ -19,7 +19,6 @@ def get_data_url(response):
     return matches.group(1)
 
 
-
 class TestViews(TestCase):
 
     @classmethod
