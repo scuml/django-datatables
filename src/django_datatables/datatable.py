@@ -305,6 +305,17 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
 
     def get_context_data(self, request):
+        """
+        Gets paginated data.
+        Returned as json dict.
+        """
+
+        json_response = dict(
+            draw=0,
+            recordsTotal=0,
+            recordsFiltered=0,
+            data=[]
+        )
 
         try:
             qs = self.get_initial_queryset(request)
@@ -322,11 +333,13 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             # prepare output data
             data = self.prepare_results(qs)
 
-            ret = {'draw': int(self._querydict.get('draw', 0)),
-                   'recordsTotal': total_records,
-                   'recordsFiltered': total_display_records,
-                   'data': data
-            }
+            json_response.update(dict(
+                draw=int(self._querydict.get('draw', 0)),
+                recordsTotal=total_records,
+                recordsFiltered=total_display_records,
+                data=data
+            ))
+
         except Exception as e:
             logger.exception(str(e))
 
@@ -338,12 +351,9 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             else:
                 text = "\nAn error occured while processing an AJAX request."
 
-            ret = {'error': text,
-                   'data': [],
-                   'recordsTotal': 0,
-                   'recordsFiltered': 0,
-                   'draw': int(self._querydict.get('draw', 0))}
-        return ret
+            json_response['error'] = text
+
+        return json_response
 
 
 from django.template.loader import select_template
