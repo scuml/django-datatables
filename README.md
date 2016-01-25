@@ -143,7 +143,9 @@ Meta
     initial_order = ['created_date', 'scientist']
 ```
 
-**search_fields**the fields that the search box will search for content.  This can be more finely controlled in the filter_by_search() method.
+**searching**: (default: `false`) Enable the search box
+
+**search_fields** the fields that the search box will search for content.  This can be more finely controlled in the filter_by_search() method.
 
 ```python
     search_fields = ['study_name', 'code_name', 'scientist__scientist_name']

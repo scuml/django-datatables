@@ -7,13 +7,11 @@ from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import ugettext as _
 from django.utils.cache import add_never_cache_headers
-from django.views.generic.base import TemplateView
 
 try:
     from .excel import ExcelWriter
 except ImportError:
     ExcelWriter = None
-
 
 import logging
 logger = logging.getLogger(__name__)
@@ -28,19 +26,15 @@ class LazyEncoder(DjangoJSONEncoder):
         return super(LazyEncoder, self).default(obj)
 
 
-class JSONResponseMixin(object):
+class DataResponse(object):
 
-    def render_to_response(self, context):
+    def render_to_json_response(self, context):
         """ Returns a JSON response containing 'context' as payload
         """
-        return self.get_json_response(context)
-
-    def get_json_response(self, content, **httpresponse_kwargs):
-        """ Construct an `HttpResponse` object.
-        """
-        response = HttpResponse(content,
-                                content_type='application/json',
-                                **httpresponse_kwargs)
+        response = HttpResponse(
+            context,
+            content_type='application/json',
+        )
         add_never_cache_headers(response)
         return response
 
@@ -63,10 +57,7 @@ class JSONResponseMixin(object):
             )
         )
 
-    def post(self, *args, **kwargs):
-        return self.get(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
+    def as_json(self, request, *args, **kwargs):
         self.request = request
         response = None
 
@@ -74,9 +65,6 @@ class JSONResponseMixin(object):
             return self.create_excel_response()
 
         func_val = self.get_context_data(request)
-        print '====='
-        print func_val
-        print dict(func_val)
         try:
             assert isinstance(func_val, dict)
             response = dict(func_val)
@@ -99,8 +87,4 @@ class JSONResponseMixin(object):
                         'text': msg}
 
         dump = json.dumps(response, cls=LazyEncoder)
-        return self.render_to_response(dump)
-
-
-class JSONResponseView(JSONResponseMixin, TemplateView):
-    pass
+        return self.render_to_json_response(dump)

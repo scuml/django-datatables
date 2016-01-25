@@ -14,7 +14,7 @@ from django.utils import six
 from django.utils.safestring import mark_safe
 
 from .column import *
-from .mixins import JSONResponseView
+from .mixins import DataResponse
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         order_columns = []
         max_display_length = 100  # max limit of records returned, do not allow to kill our server by huge sets of data
         extra_fields = []
+        searching = False
 
     @property
     def _querydict(self):
@@ -137,7 +138,8 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         return keys.index(key)
 
     def render_columns(self, row_dicts):
-        """ Renders a column on a row
+        """
+        Renders a column on a row
         """
         fields = self.declared_fields.keys()
         rendered_columns = []  # initialize return array
@@ -359,7 +361,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 from django.template.loader import select_template
 
 
-class Datatable(DatatableBase, JSONResponseView):
+class Datatable(DatatableBase, DataResponse):
 
     def datatable_config(self):
         """
@@ -377,6 +379,9 @@ class Datatable(DatatableBase, JSONResponseView):
             if key not in self._meta.order_columns:
                 column_config['orderable'] = False
             config['columns'].append(column_config)
+
+        # Searching
+        config['searching'] = self._meta.searching
 
         # Ordering
         config['order'] = []
