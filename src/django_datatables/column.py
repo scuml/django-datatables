@@ -101,8 +101,9 @@ class DateColumn(Column):
     Renders a date in Y-m-d format
     """
     def render_column(self, value):
-        return value.strftime("%Y-%m-%d").upper()
-
+        if value:
+            return value.strftime("%Y-%m-%d").upper()
+        return ''
 
 class StringColumn(Column):
     """

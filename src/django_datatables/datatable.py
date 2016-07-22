@@ -276,18 +276,23 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         values_to_get = values_to_get.union(set(self.get_referenced_values()))
         values_dicts = qs.values(*values_to_get)
 
+
         rendered_values = self.render_columns(values_dicts)
         data = []
         for row in rendered_values:
             data.append(row)
         return data
 
-    def get_data(self):
+    def get_data(self, request):
         """
         Gets all data, unpaged, as a list of dicts.
         """
+        qs = self.get_initial_queryset(request)
+        qs = self.filter_queryset(qs)
+        qs = self.ordering(qs)
+        data = self.prepare_results(qs)
         try:
-            qs = self.get_initial_queryset()
+            qs = self.get_initial_queryset(request)
             qs = self.filter_queryset(qs)
             qs = self.ordering(qs)
             data = self.prepare_results(qs)

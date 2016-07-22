@@ -38,12 +38,12 @@ class DataResponse(object):
         add_never_cache_headers(response)
         return response
 
-    def create_excel_response(self):
+    def create_excel_response(self, request):
         """
 
         """
         headers = self.get_column_titles()
-        rows = self.get_data()
+        rows = self.get_data(request)
         title = getattr(self._meta, "title", "Sheet")
 
         xlwriter = ExcelWriter()
@@ -62,7 +62,7 @@ class DataResponse(object):
         response = None
 
         if request.GET.get("export") == "excel":
-            return self.create_excel_response()
+            return self.create_excel_response(request)
 
         func_val = self.get_context_data(request)
         try:

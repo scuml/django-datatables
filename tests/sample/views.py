@@ -1,38 +1,36 @@
 from django.shortcuts import render
 
-from .models import Employee
+from .models import Study
 from django_datatables import datatable, column
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+class StudyListDatatable(datatable.Datatable):
 
-class EmployeeListDatatable(datatable.Datatable):
-    name = column.StringColumn()
-    birthday = column.DateColumn()
-    start_date = column.DateColumn()
-    manager = column.TextColumn(value='manager__last_name')
-
-    def render_name(self, row):
-        return "{} {}".format(row['first_name'], row['last_name']).strip()
+    sponsor = column.TextColumn(value='sponsor__sponsor_name')
+    protocol = column.TextColumn()
+    study_name = column.TextColumn(link='edit_study', link_args=['slug'])
+    activation_date = column.DateColumn()
+    study_status = column.TextColumn(css_class='text-info')
 
     class Meta:
-        model = Employee
-        extra_fields = ('first_name', 'last_name')
+        model = Study
+        order_columns = ('protocol', 'study_name')
+        initial_order = ('study_name',)
+        searching = True
+        search_fields = ('protocol', 'study_name', 'sponsor__sponsor_name')
+
+        export_to_excel = True
+
+    def render_study_status(self, val):
+        return val.title()
+
+def study_list(request):
+    datatable = StudyListDatatable()
+    return render(request, 'main.html', {
+        "datatable": datatable
+    })
 
 
-class SecureEmployeeListDatatable(LoginRequiredMixin, EmployeeListDatatable):
-
-    def get_initial_queryset(self, request):
-        return Employee.objects.filter(first_name="Fred")
-
-
-def employee_list(request):
-    datatable = EmployeeListDatatable()
-    return render(request, 'main.html',
-        {"datatable": datatable}
-    )
-
-def secure_employee_list(request):
-    datatable = SecureEmployeeListDatatable()
-    return render(request, 'main.html',
-        {"datatable": datatable}
+def edit_study(request, slug):
+    return render(request, 'edit.html',
+        {"slug": slug}
     )
