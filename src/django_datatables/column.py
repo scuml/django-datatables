@@ -84,6 +84,18 @@ class GlyphiconColumn(Column):
     def render_column(self, value):
         return "<span class='glyphicon glyphicon-{}'></span>".format(self.icon)
 
+class FontAwesome4Column(Column):
+
+    def __init__(self, icon, *args, **kwargs):
+        if icon.startswith('fa-'):
+            icon = icon[3:]
+        self.icon = icon
+        self.db_independant = True
+        super(FontAwesome4Column, self).__init__(*args, **kwargs)
+
+    def render_column(self, value):
+        return """<i class="fa fa-{}" aria-hidden="true"></i>""".format(self.icon)
+
 
 class ConstantTextColumn(Column):
 
