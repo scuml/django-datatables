@@ -196,11 +196,14 @@ The following column types are available in the django_datatables.column module.
 
 **StringColumn**: A column that will render text using multiple fields.  Request the data with `Meta.extra_fields` and format the text with the render_* method.
 
-**CheckBoxColumn**: Renders a checkbox.
+**CheckBoxColumn**: Render a checkbox.
 
-**GlyphiconColumn(icon)**: Displays an icon from bootstrap's v3 glyphicon set.
+**GlyphiconColumn(icon)**: Displayan icon from bootstrap's v3 glyphicon set.
 
-**DateColumn**: Renders a date in Y-m-d format.
+**FontAwesome4(icon)**: Display an icon from the Font Awesome 4 library. Ex: `column.FontAwesome4Column('stop-circle fa-2x')`
+(Must manually include bootstrap in source.)
+
+**DateColumn**: Render a date in Y-m-d format.
 
 
 Permissions
