@@ -1,9 +1,31 @@
 <script>
 // jQueryless
 document.addEventListener("DOMContentLoaded", function(event) {
-    $('.datatable').DataTable(
-        {{datatable.datatable_config}}
+    dt_config = {{datatable.datatable_config}};
+    dt_config["ajax"] = {
+        "url": '{% url 'django_datatables:datatable_manager' %}?module={{module}}&name={{name}}',
+        "data": function(data){
+            for (var i = 0, len = data.columns.length; i < len; i++) {
+                if (! data.columns[i].search.value) delete data.columns[i].search;
+                if (data.columns[i].searchable === true) delete data.columns[i].searchable;
+                if (data.columns[i].orderable === true) delete data.columns[i].orderable;
+                if (data.columns[i].data === data.columns[i].name) delete data.columns[i].name;
+              }
+              delete data.search.regex;
+
+            data.additional_data = $(".datatable-form form").serialize();
+        }
+    }
+    datatable = $('.datatable').DataTable(
+        dt_config
     );
+    $(".datatable-form input[type=checkbox]").attr('value', 1)
+    $(".datatable-form form").submit(function(){
+        datatable.ajax.reload();
+        return false;
+
+    })
+
 });
 </script>
 
@@ -13,7 +35,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
     </p>
 {% endif %}
 
-<table class="table table-striped datatable" data-ajax="{% url 'django_datatables:datatable_manager' %}?module={{module}}&name={{name}}"
+
+<table class="table table-striped datatable" style="border-collapse: collapse !important; width:100%;"
     data-server-side='true'
     >
     <thead>

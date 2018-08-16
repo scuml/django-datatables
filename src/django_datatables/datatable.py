@@ -5,6 +5,7 @@ Datatable classes
 from collections import OrderedDict
 import logging
 from json import dumps
+import sys
 
 from pyquerystring import parse
 
@@ -12,26 +13,56 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import six
 from django.utils.safestring import mark_safe
+from django.views.debug import ExceptionReporter
+from django.template.loader import select_template
 
 from .column import *
 from .mixins import DataResponse
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
-class AttrDict(object):
-    pass
+
+class AttrDict(dict):
+    """A dictionary with attribute-style access. It maps attribute access to
+    the real dictionary.  """
+
+    def __init__(self, init={}):
+        dict.__init__(self, init)
+
+    def __getstate__(self):
+        return self.__dict__.items()
+
+    def __setstate__(self, items):
+        for key, val in items:
+            self.__dict__[key] = val
+
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
+
+    def __setitem__(self, key, value):
+        return super(AttrDict, self).__setitem__(key, value)
+
+    def __getitem__(self, name):
+        return super(AttrDict, self).__getitem__(name)
+
+    def __delitem__(self, name):
+        return super(AttrDict, self).__delitem__(name)
+
+    __getattr__ = __getitem__
+    __setattr__ = __setitem__
+
 
 class DeclarativeFieldsMetaclass(type):
     """
     Metaclass that collects Fields declared on the base classes.
     """
-    _meta = AttrDict()
 
     def __new__(mcs, name, bases, attrs):
 
-        attr_meta = attrs.pop('Meta', None)
+        # Pop the Meta class if exists
+        meta = attrs.pop('Meta', None)
 
-        # Collect fields from current class.
+        # Collect fields/columns from current class.
         current_columns = []
         for key, value in list(attrs.items()):
             if isinstance(value, Column):
@@ -40,26 +71,27 @@ class DeclarativeFieldsMetaclass(type):
         current_columns.sort(key=lambda x: x[1].creation_counter)
         attrs['declared_fields'] = OrderedDict(current_columns)
 
-        new_class = (super(DeclarativeFieldsMetaclass, mcs)
-            .__new__(mcs, name, bases, attrs))
-
-        if not attr_meta:
-            meta = getattr(new_class, 'Meta', None)
-        else:
-            meta = attr_meta
+        new_class = (super(DeclarativeFieldsMetaclass, mcs).__new__(mcs, name, bases, attrs))
 
         base_meta = getattr(new_class, '_meta', None)
-
+        _meta = AttrDict()
         if meta:
             for key, value in meta.__dict__.items():
-                setattr(base_meta, key, value)
+                if key.startswith("__"):
+                    continue
+                _meta[key] = value
 
-            setattr(new_class, '_meta', base_meta)
-
+        for base in bases:
+            base_meta = getattr(base, '_meta', {})
+            for key, value in base_meta.items():
+                if key not in _meta:
+                    _meta[key] = value
 
         # Walk through the MRO.
         declared_fields = OrderedDict()
+
         for base in reversed(new_class.__mro__):
+
             # Collect fields from base class.
             if hasattr(base, 'declared_fields'):
                 declared_fields.update(base.declared_fields)
@@ -71,6 +103,7 @@ class DeclarativeFieldsMetaclass(type):
 
         new_class.base_fields = declared_fields
         new_class.declared_fields = declared_fields
+        new_class._meta = _meta
 
         return new_class
 
@@ -81,7 +114,8 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
     class Meta:
         order_columns = []
-        max_display_length = 100  # max limit of records returned, do not allow to kill our server by huge sets of data
+        # max limit of records returned, do not allow to kill our server by huge sets of data
+        max_display_length = 100
         extra_fields = []
         searching = False
 
@@ -127,14 +161,14 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         """
         Returns the column key at a specified index
         """
-        keys = self.declared_fields.keys()
+        keys = list(self.declared_fields.keys())
         return keys[index]
 
     def get_index_by_key(self, key):
         """
         Returns the column index for a provided key
         """
-        keys = self.declared_fields.keys()
+        keys = list(self.declared_fields.keys())
         return keys.index(key)
 
     def render_columns(self, row_dicts):
@@ -155,8 +189,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             for ir, row_dict in enumerate(row_dicts):
                 rendered_columns[ir][ic] = column.render_column(row_dict.get(field))
                 rendered_columns[ir][ic] = column.render_column_using_values(
-                    rendered_columns[ir][ic], row_dict
-                )
+                    rendered_columns[ir][ic], row_dict)
 
             # Call the render_{} method for each column in local class
             method_name = "render_{}".format(field)
@@ -174,8 +207,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
                 # Call the render_link to wrap column in link tag
                 for ir, row_dict in enumerate(row_dicts):
                     rendered_columns[ir][ic] = column.render_link(
-                        rendered_columns[ir][ic], row_dict
-                    )
+                        rendered_columns[ir][ic], row_dict)
 
         return rendered_columns
 
@@ -202,7 +234,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
     def paging(self, qs):
         """ Paging
         """
-        limit = min(int(self._querydict.get('length', 10)), self._meta.max_display_length)
+        limit = min(int(self._querydict.get('length', 25)), self._meta.max_display_length)
         start = int(self._querydict.get('start', 0))
 
         # if pagination is disabled ("paging": false)
@@ -226,15 +258,19 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         counter = 0
         data_name_key = 'columns[{0}][name]'.format(counter)
         while data_name_key in request_dict:
-            searchable = True if request_dict.get('columns[{0}][searchable]'.format(counter)) == 'true' else False
-            orderable = True if request_dict.get('columns[{0}][orderable]'.format(counter)) == 'true' else False
+            searchable = True if request_dict.get(
+                'columns[{0}][searchable]'.format(counter)) == 'true' else False
+            orderable = True if request_dict.get(
+                'columns[{0}][orderable]'.format(counter)) == 'true' else False
 
             col_data.append({'name': request_dict.get(data_name_key),
                              'data': request_dict.get('columns[{0}][data]'.format(counter)),
                              'searchable': searchable,
                              'orderable': orderable,
-                             'search.value': request_dict.get('columns[{0}][search][value]'.format(counter)),
-                             'search.regex': request_dict.get('columns[{0}][search][regex]'.format(counter)),
+                             'search.value': request_dict.get('columns[{0}][search][value]'.format(
+                                 counter)),
+                             'search.regex': request_dict.get('columns[{0}][search][regex]'.format(
+                                 counter)),
                              })
             counter += 1
             data_name_key = 'columns[{0}][name]'.format(counter)
@@ -246,20 +282,21 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         Searches on icontains unless otherwise specified
         """
         search = self.request.GET.get('search[value]', None)
-        if search:
-            if getattr(self._meta, 'search_min_length', 0) <= len(search):
-                if hasattr(self._meta, "search_fields"):
-                    field_lookup_suffixes = (
-                        'exact', 'contains', 'startswith',
-                        'endswith', 'search', 'regex'
-                    )
-                    q = Q()
-                    for field_lookup in self._meta.search_fields:
-                        if not field_lookup.endswith(field_lookup_suffixes):
-                            # if no suffix provided, append "__icontains"
-                            field_lookup += '__icontains'
-                        q |= Q(**{field_lookup: search})
-                    qs = qs.filter(q)
+        if not search:
+            return qs
+
+        if getattr(self._meta, 'search_min_length', 0) <= len(search) and hasattr(
+                self._meta, "search_fields"):
+            field_lookup_suffixes = (
+                'exact', 'contains', 'startswith',
+                'endswith', 'search', 'regex')
+            q = Q()
+            for field_lookup in self._meta.search_fields:
+                if not field_lookup.endswith(field_lookup_suffixes):
+                        # if no suffix provided, append "__icontains"
+                    field_lookup += '__icontains'
+                q |= Q(**{field_lookup: search})
+            qs = qs.filter(q)
 
         return qs
 
@@ -275,7 +312,6 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         values_to_get = set(self.get_values_list())
         values_to_get = values_to_get.union(set(self.get_referenced_values()))
         values_dicts = qs.values(*values_to_get)
-
 
         rendered_values = self.render_columns(values_dicts)
         data = []
@@ -297,19 +333,9 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             qs = self.ordering(qs)
             data = self.prepare_results(qs)
         except Exception as e:
-            logger.exception(str(e))
-
-            if settings.DEBUG:
-                import sys
-                from django.views.debug import ExceptionReporter
-                reporter = ExceptionReporter(None, *sys.exc_info())
-                text = "\n" + reporter.get_traceback_text()
-            else:
-                text = "\nAn error occured while processing an AJAX request."
-
-            data = {'error': text}
+            LOG.exception(str(e))
+            data = {'error': self.report_traceback()}
         return data
-
 
     def get_context_data(self, request):
         """
@@ -317,13 +343,12 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         Returned as json dict.
         """
 
-        json_response = dict(
-            draw=0,
-            recordsTotal=0,
-            recordsFiltered=0,
-            data=[]
-        )
+        json_response = dict(draw=0, recordsTotal=0, recordsFiltered=0, data=[])
 
+        filter_params = {}
+        additional_data = request.GET.get("additional_data")
+        if additional_data:
+            filter_params = parse(additional_data)
         try:
             qs = self.get_initial_queryset(request)
 
@@ -331,13 +356,14 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             total_records = qs.count()
 
             qs = self.filter_queryset(qs)
+            if filter_params:
+                qs = qs.filter(**filter_params)
 
             # number of records after filtering
             total_display_records = qs.count()
 
             qs = self.ordering(qs)
             qs = self.paging(qs)
-            # prepare output data
             data = self.prepare_results(qs)
 
             json_response.update(dict(
@@ -348,22 +374,16 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             ))
 
         except Exception as e:
-            logger.exception(str(e))
-
-            if settings.DEBUG:
-                import sys
-                from django.views.debug import ExceptionReporter
-                reporter = ExceptionReporter(None, *sys.exc_info())
-                text = "\n" + reporter.get_traceback_text()
-            else:
-                text = "\nAn error occured while processing an AJAX request."
-
-            json_response['error'] = text
+            LOG.exception(str(e))
+            json_response['error'] = self.report_traceback()
 
         return json_response
 
-
-from django.template.loader import select_template
+    def report_traceback(self):
+        if settings.DEBUG:
+            reporter = ExceptionReporter(None, *sys.exc_info())
+            return "\n" + reporter.get_traceback_text()
+        return "\nAn error occured while processing an AJAX request."
 
 
 class Datatable(DatatableBase, DataResponse):
@@ -390,7 +410,7 @@ class Datatable(DatatableBase, DataResponse):
 
         # Ordering
         config['order'] = []
-        if hasattr(self._meta, "initial_order"):
+        if "initial_order" in self._meta:
             for order_col in self._meta.initial_order:
                 order_dir = 'asc'
                 if order_col.startswith('-'):
@@ -400,10 +420,14 @@ class Datatable(DatatableBase, DataResponse):
                 config['order'].append([order_index, order_dir])
 
         # Initial Display Length
-        config['iDisplayLength'] = getattr(self._meta, 'initial_rows_displayed', 10)
-        config['serverSide'] = getattr(self._meta, 'server_side', True)
+        config['iDisplayLength'] = self._meta.get('initial_rows_displayed', 25)
+        config['serverSide'] = self._meta.get('server_side', True)
 
         return mark_safe(dumps(config))
+
+    @property
+    def filter_form(self):
+        return self._meta.get('filter_form', None)
 
     def render(self):
         """
@@ -411,7 +435,7 @@ class Datatable(DatatableBase, DataResponse):
         """
         template = select_template(['django_datatables/table.html'])
         context = dict(
-            can_export_to_excel=getattr(self._meta, 'export_to_excel', False),
+            can_export_to_excel=self._meta.get('export_to_excel', False),
             module=self.__module__,
             name=self.__class__.__name__,
             datatable=self,
