@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import logging
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
@@ -13,13 +14,13 @@ try:
 except ImportError:
     ExcelWriter = None
 
-import logging
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class LazyEncoder(DjangoJSONEncoder):
     """Encodes django's lazy i18n strings
     """
+
     def default(self, obj):
         if isinstance(obj, Promise):
             return force_text(obj)
@@ -51,11 +52,7 @@ class DataResponse(object):
         for row in rows:
             xlwriter.add_row(title, dict(zip(headers, row)))
 
-        return xlwriter.download(
-            '{}-{}.xlsx'.format(
-                title, datetime.now().strftime("%Y-%m-%d %H%m")
-            )
-        )
+        return xlwriter.download(f'{title}-{datetime.now().strftime("%Y-%m-%d %H%m")}.xlsx')
 
     def as_json(self, request, *args, **kwargs):
         self.request = request
@@ -74,17 +71,9 @@ class DataResponse(object):
             # Allow keyboard interrupts through for debugging.
             raise
         except Exception as e:
-            logger.error('JSON view error: %s' % request.path, exc_info=True)
-
-            # Come what may, we're returning JSON.
-            if hasattr(e, 'message'):
-                msg = e.message
-                msg += str(e)
-            else:
-                msg = _('Internal error') + ': ' + str(e)
-            response = {'result': 'error',
-                        'sError': msg,
-                        'text': msg}
+            LOG.exception('JSON view error: %s', request.path)
+            msg = getattr(e, 'message', _('Internal error') + ': ') + str(e)
+            response = {'result': 'error', 'sError': msg, 'text': msg}
 
         dump = json.dumps(response, cls=LazyEncoder)
         return self.render_to_json_response(dump)

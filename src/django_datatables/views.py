@@ -2,6 +2,7 @@ from .views import *
 
 import importlib
 
+
 def datatable_manager(request):
     """
     Return the json data for a datatable

@@ -2,7 +2,7 @@
 Column classes
 """
 
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 
 class Column(object):
@@ -37,7 +37,10 @@ class Column(object):
         """ Returns a list of values that will need to be referenced """
         values = []
         if self.has_link():  # link will need link_args
-            values.extend(self.link_args)
+            for link_arg in self.link_args:
+                if link_arg[0] not in (".", "#"):
+                    values.append(link_arg)
+
         if type(self) == CheckBoxColumn:  # CheckBoxColumn's "value" is a field
             values.append(self.value)
         return values
@@ -46,7 +49,15 @@ class Column(object):
         """
         Returns value wrapped in link tag as specified by link
         """
-        reverse_args = [values_dict[key] for key in self.link_args]
+        def get_link_val(key):
+            """ Gets a link by column, fixed string (#), or class attribute (.)"""
+            if key.startswith("#"):
+                return key[1:]
+            elif key.startswith("."):
+                return getattr(self, key[1:])
+            return values_dict[key]
+
+        reverse_args = [get_link_val(key) for key in self.link_args]
         link = reverse(self.link, args=reverse_args)
         return '<a href="{link}">{val}</a>'.format(link=link, val=value)
 
@@ -84,6 +95,7 @@ class GlyphiconColumn(Column):
     def render_column(self, value):
         return "<span class='glyphicon glyphicon-{}'></span>".format(self.icon)
 
+
 class FontAwesome4Column(Column):
 
     def __init__(self, icon, *args, **kwargs):
@@ -95,6 +107,29 @@ class FontAwesome4Column(Column):
 
     def render_column(self, value):
         return """<i class="fa fa-{}" aria-hidden="true"></i>""".format(self.icon)
+
+
+class FontAwesome5Column(Column):
+
+    def __init__(self, icon, *args, **kwargs):
+        self.icon = icon
+        self.db_independant = True
+        super(FontAwesome5Column, self).__init__(*args, **kwargs)
+
+    def render_column(self, value):
+        return """<i class="{}"></i>""".format(self.icon)
+
+
+class BulletedListColumn(Column):
+
+    def render_column(self, value):
+        items = '\n'.join(map(lambda v: f'<li>{v}</li>', value))
+
+        return f"""
+            <ul style="margin: 0; padding-left: 1.5em;">
+                {items}
+            </ul>
+        """
 
 
 class ConstantTextColumn(Column):
@@ -116,6 +151,7 @@ class DateColumn(Column):
         if value:
             return value.strftime("%Y-%m-%d").upper()
         return ''
+
 
 class StringColumn(Column):
     """
