@@ -54,7 +54,7 @@ class DataResponse(object):
 
         return xlwriter.download(f'{title}-{datetime.now().strftime("%Y-%m-%d %H%m")}.xlsx')
 
-    def as_json(self, request, *args, **kwargs):
+    def dispatch(self, request, *args, **kwargs):
         self.request = request
         response = None
 

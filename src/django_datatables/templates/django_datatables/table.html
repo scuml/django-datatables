@@ -13,14 +13,14 @@ document.addEventListener("DOMContentLoaded", function(event) {
               }
               delete data.search.regex;
 
-            data.additional_data = $(".datatable-form form").serialize();
+            data.additional_data = $("form.datatable-form").serialize();
         }
     }
     datatable = $('.datatable').DataTable(
         dt_config
     );
     $(".datatable-form input[type=checkbox]").attr('value', 1)
-    $(".datatable-form form").submit(function(){
+    $("form.datatable-form").submit(function(){
         datatable.ajax.reload();
         return false;
 

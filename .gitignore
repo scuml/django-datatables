@@ -2,3 +2,5 @@
 *.pyc
 
 tests/db.sqlite3
+.eggs/README.txt
+*.egg-info

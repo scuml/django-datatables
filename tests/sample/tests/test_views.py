@@ -1,18 +1,19 @@
-import json
 import re
 
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.test import Client, TestCase
 from django.contrib.auth.models import User
 
 from model_mommy import mommy
 
+
 def get_data_url(response):
     """
-    Returns the url contained in the data-ajax attribute from
-    a datatable render.
+    Returns the url contained in the data-ajax attribute from the
+    response html content.
     """
-    matches = re.search("data-ajax=\"(.*?)\"", response.content, re.S | re.M)
+
+    matches = re.search("url\": \\'(.*?)'", response.content.decode('utf-8'), re.S | re.M)
     if not matches:
         return ''
 
@@ -32,7 +33,7 @@ class TestViews(TestCase):
         """
         response = self.client.get(get_data_url(response))
         self.assertEqual(response.status_code, 200)
-        return json.loads(response.content)
+        return response.json()
 
     def test_employee_list(self):
         response = self.client.get(reverse('employee_list'))

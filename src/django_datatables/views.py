@@ -13,5 +13,7 @@ def datatable_manager(request):
         return None
     module = importlib.import_module(module_name)
     cls = getattr(module, name)
-    view = cls().as_json
-    return view(request)
+    instance = cls()
+    instance.request = request
+    view_method = instance.dispatch
+    return view_method(request)

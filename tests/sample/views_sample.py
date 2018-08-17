@@ -1,9 +1,11 @@
 from django.shortcuts import render
 
 from .models import Employee
+from .forms import EmployeeFilterForm
 from django_datatables import datatable, column
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+
 
 class EmployeeListDatatable(datatable.Datatable):
     name = column.StringColumn()
@@ -16,13 +18,14 @@ class EmployeeListDatatable(datatable.Datatable):
 
     class Meta:
         model = Employee
+        filter_form = EmployeeFilterForm
+
         extra_fields = ('first_name', 'last_name')
 
 
 class SecureEmployeeListDatatable(LoginRequiredMixin, EmployeeListDatatable):
-
     def get_initial_queryset(self, request):
-        return Employee.objects.filter(first_name="Fred")
+        return Employee.objects.all()
 
 
 def employee_list(request):
@@ -31,7 +34,10 @@ def employee_list(request):
         {"datatable": datatable}
     )
 
+
 def secure_employee_list(request):
+    # only the datatable is secured for the test.
+    # Most applications would also need to secure the view itself.
     datatable = SecureEmployeeListDatatable()
     return render(request, 'main.html',
         {"datatable": datatable}

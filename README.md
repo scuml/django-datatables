@@ -11,6 +11,11 @@ The django datatables library makes creating tables that make use of the datatab
 * Simplify use of Django style URLs within the datatable
 
 
+Installation
+------------
+`pip install classy-django-datatables`
+
+
 Quick Setup
 -----
 Download the library and place it somewhere accessable in your PYTHONPATH.  The following is a basic example to demonstrate the ease to get up and running.
@@ -206,6 +211,43 @@ The following column types are available in the django_datatables.column module.
 **DateColumn**: Render a date in Y-m-d format.
 
 
+Filters
+-------
+Filter forms can be connected to the datatable by assigning a django form to Meta.filter_form.  Naming the fields as django queryset keys (eg: `name__icontains`, `count__gte`) will auto filter the form as needed.
+
+
+### Filter example
+
+```python
+
+
+class EmployeeFilterForm(forms.Form):
+    last_name__icontains = forms.CharField(label="Last Name", required=False)
+
+
+class StudyListDatatable(datatable.Datatable):
+
+    name = column.StringColumn()
+    class Meta:
+        model = Employee
+        filter_form = EmployeeFilterForm
+        extra_fields = ('first_name', 'last_name')
+    def render_name(self, row):
+        return "{} {}".format(row['first_name'], row['last_name']).strip()
+
+
+```
+
+In the template, the form can be displayed with the following.  There /must/ be a `.datatable-form` class attached to the form.
+
+```html
+    <form class='datatable-form'>
+        {{datatable.filter_form}}
+        <button type="submit">Submit</button>
+    </form>
+```
+
+
 Permissions
 -----------
 
@@ -221,8 +263,3 @@ More information regarding mixins can be found at the official
         ...
 ```
 
-*To Do*
--------
-
-* Attach a django form to filter the table.
-* Documentation to customize templates
