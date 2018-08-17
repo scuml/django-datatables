@@ -323,10 +323,6 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         """
         Gets all data, unpaged, as a list of dicts.
         """
-        qs = self.get_initial_queryset(request)
-        qs = self.filter_queryset(qs)
-        qs = self.ordering(qs)
-        data = self.prepare_results(qs)
         try:
             qs = self.get_initial_queryset(request)
             qs = self.filter_queryset(qs)
