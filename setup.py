@@ -13,4 +13,4 @@ if 'publish' in sys.argv:
         os.system('python setup.py sdist bdist_wheel upload')
     sys.exit()
 
-setup(setup_requires='packit', packit=True)
+setup()
