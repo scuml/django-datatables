@@ -18,100 +18,14 @@ from django.template.loader import select_template
 
 from .column import *
 from .mixins import DataResponse
+from .datatable_meta import DeclarativeFieldsMetaclass
 
 LOG = logging.getLogger(__name__)
-
-
-class AttrDict(dict):
-    """A dictionary with attribute-style access. It maps attribute access to
-    the real dictionary.  """
-
-    def __init__(self, init={}):
-        dict.__init__(self, init)
-
-    def __getstate__(self):
-        return self.__dict__.items()
-
-    def __setstate__(self, items):
-        for key, val in items:
-            self.__dict__[key] = val
-
-    def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
-
-    def __setitem__(self, key, value):
-        return super(AttrDict, self).__setitem__(key, value)
-
-    def __getitem__(self, name):
-        return super(AttrDict, self).__getitem__(name)
-
-    def __delitem__(self, name):
-        return super(AttrDict, self).__delitem__(name)
-
-    __getattr__ = __getitem__
-    __setattr__ = __setitem__
-
-
-class DeclarativeFieldsMetaclass(type):
-    """
-    Metaclass that collects Fields declared on the base classes.
-    """
-
-    def __new__(mcs, name, bases, attrs):
-
-        # Pop the Meta class if exists
-        meta = attrs.pop('Meta', None)
-
-        # Collect fields/columns from current class.
-        current_columns = []
-        for key, value in list(attrs.items()):
-            if isinstance(value, Column):
-                current_columns.append((key, value))
-                attrs.pop(key)
-        current_columns.sort(key=lambda x: x[1].creation_counter)
-        attrs['declared_fields'] = OrderedDict(current_columns)
-
-        new_class = (super(DeclarativeFieldsMetaclass, mcs).__new__(mcs, name, bases, attrs))
-
-        base_meta = getattr(new_class, '_meta', None)
-        _meta = AttrDict()
-        if meta:
-            for key, value in meta.__dict__.items():
-                if key.startswith("__"):
-                    continue
-                _meta[key] = value
-
-        for base in bases:
-            base_meta = getattr(base, '_meta', {})
-            for key, value in base_meta.items():
-                if key not in _meta:
-                    _meta[key] = value
-
-        # Walk through the MRO.
-        declared_fields = OrderedDict()
-
-        for base in reversed(new_class.__mro__):
-
-            # Collect fields from base class.
-            if hasattr(base, 'declared_fields'):
-                declared_fields.update(base.declared_fields)
-
-            # Field shadowing.
-            for attr, value in base.__dict__.items():
-                if value is None and attr in declared_fields:
-                    declared_fields.pop(attr)
-
-        new_class.base_fields = declared_fields
-        new_class.declared_fields = declared_fields
-        new_class._meta = _meta
-
-        return new_class
 
 
 class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
     """ JSON data for datatables
     """
-
     class Meta:
         order_columns = []
         # max limit of records returned, do not allow to kill our server by huge sets of data
@@ -123,8 +37,8 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
     def _querydict(self):
         if self.request.method == 'POST':
             return self.request.POST
-        else:
-            return parse(self.request.GET)
+
+        return parse(self.request.GET)
 
     def get_column_titles(self):
         """ Return list of column titles for the template engine
@@ -139,11 +53,10 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         Returns a list of the values to retrieve from the ORM.
         Do not return columns marked as db_independant.
         """
-        values = []
-        for key, column in self.declared_fields.items():
-            if getattr(column, 'db_independant', False):
-                continue
-            values.append(column.value if column.value else key)
+        values = [
+            c.value if c.value else k for k, c in self.declared_fields.items(
+            ) if not getattr(c, 'db_independant', False)
+        ]
         values.extend(self._meta.extra_fields)
         return values
 
@@ -157,74 +70,69 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             referenced_values += column.get_referenced_values()
         return referenced_values
 
-    def get_field_by_index(self, index):
-        """
-        Returns the column key at a specified index
-        """
-        keys = list(self.declared_fields.keys())
-        return keys[index]
+    def _render_column(self, field, column, ic):
+        # Call the render_column method for each field
+        for ir, row_dict in enumerate(self.values_dicts):
+            self.rendered_columns[ir][ic] = column.render_column(row_dict.get(field))
+            self.rendered_columns[ir][ic] = column.render_column_using_values(
+                self.rendered_columns[ir][ic], row_dict)
 
-    def get_index_by_key(self, key):
-        """
-        Returns the column index for a provided key
-        """
-        keys = list(self.declared_fields.keys())
-        return keys.index(key)
+    def execute_method(self, method, column, ic):
+        for ir, row_dict in enumerate(self.values_dicts):
+            if getattr(column, 'db_independant', False):
+                # send row to db_indepenants
+                self.rendered_columns[ir][ic] = method(row_dict)
+            else:
+                self.rendered_columns[ir][ic] = method(self.rendered_columns[ir][ic])
 
-    def render_columns(self, row_dicts):
+    def _render_field(self, field, column, ic):
+        """ Call the render_{} method for each column in local class """
+        method_name = "render_{}".format(field)
+        if hasattr(self, method_name):
+            method = getattr(self, method_name)
+            if callable(method):
+                self.execute_method(method, column, ic)
+
+    def _render_link(self, column, ic):
+        """ Call the render_link to wrap column in link tag """
+        for ir, row_dict in enumerate(self.values_dicts):
+            rendered_columns[ir][ic] = column.render_link(
+                rendered_columns[ir][ic], row_dict)
+
+    def render_columns(self):
         """
         Renders a column on a row
         """
         fields = self.declared_fields.keys()
-        rendered_columns = []  # initialize return array
-        for i in range(len(row_dicts)):
-            rendered_columns.append([None] * len(fields))
+        self.rendered_columns = [[None] * len(fields) for i in range(len(self.values_dicts))]
 
         for ic, field in enumerate(fields):
             column = self.declared_fields[field]
             if column.value:
                 field = column.value
 
-            # Call the render_column method for each field
-            for ir, row_dict in enumerate(row_dicts):
-                rendered_columns[ir][ic] = column.render_column(row_dict.get(field))
-                rendered_columns[ir][ic] = column.render_column_using_values(
-                    rendered_columns[ir][ic], row_dict)
-
-            # Call the render_{} method for each column in local class
-            method_name = "render_{}".format(field)
-            if hasattr(self, method_name):
-                method = getattr(self, method_name)
-                if callable(method):
-                    for ir, row_dict in enumerate(row_dicts):
-                        if getattr(column, 'db_independant', False):
-                            # send row to db_indepenants
-                            rendered_columns[ir][ic] = method(row_dict)
-                        else:
-                            rendered_columns[ir][ic] = method(rendered_columns[ir][ic])
+            self._render_column(field, column, ic)
+            self._render_field(field, column, ic)
 
             if column.has_link():
-                # Call the render_link to wrap column in link tag
-                for ir, row_dict in enumerate(row_dicts):
-                    rendered_columns[ir][ic] = column.render_link(
-                        rendered_columns[ir][ic], row_dict)
+                self._render_link(column, ic)
 
-        return rendered_columns
+        return self.rendered_columns
 
     def ordering(self, qs):
         """
         Get parameters from the request and prepare order by clause
         """
-        order = list()
+        order = []
 
         sorting_cols = self._querydict.get('order', {})
         for info in sorting_cols:
             column_index = int(info['column'])
+            declared_fields_keys = list(self.declared_fields.keys())
+            field = declared_fields_keys[column_index]
+            column_key = self.declared_fields[field].value or field
+
             sort_dir = '-' if info['dir'] == 'desc' else ''
-            field = self.get_field_by_index(column_index)
-            column_key = self.declared_fields[field].value
-            if not column_key:
-                column_key = field
             order.append('{0}{1}'.format(sort_dir, column_key))
 
         if order:
@@ -250,31 +158,17 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             raise NotImplementedError("Need to provide a model or implement get_initial_queryset!")
         return self._meta.model.objects.all()
 
-    def extract_datatables_column_data(self):
-        """ Helper method to extract columns data from request as passed by Datatables 1.10+
-        """
-        request_dict = self._querydict
-        col_data = []
-        counter = 0
-        data_name_key = 'columns[{0}][name]'.format(counter)
-        while data_name_key in request_dict:
-            searchable = True if request_dict.get(
-                'columns[{0}][searchable]'.format(counter)) == 'true' else False
-            orderable = True if request_dict.get(
-                'columns[{0}][orderable]'.format(counter)) == 'true' else False
+    def filter_through_field_lookup(self, search):
+        field_lookup_suffixes = ('exact', 'contains', 'startswith',
+                                 'endswith', 'search', 'regex')
 
-            col_data.append({'name': request_dict.get(data_name_key),
-                             'data': request_dict.get('columns[{0}][data]'.format(counter)),
-                             'searchable': searchable,
-                             'orderable': orderable,
-                             'search.value': request_dict.get('columns[{0}][search][value]'.format(
-                                 counter)),
-                             'search.regex': request_dict.get('columns[{0}][search][regex]'.format(
-                                 counter)),
-                             })
-            counter += 1
-            data_name_key = 'columns[{0}][name]'.format(counter)
-        return col_data
+        for field_lookup in self._meta.search_fields:
+            if not field_lookup.endswith(field_lookup_suffixes):
+                    # if no suffix provided, append "__icontains"
+                field_lookup += '__icontains'
+            q |= Q(**{field_lookup: search})
+
+        return q
 
     def filter_by_search(self, qs):
         """
@@ -287,36 +181,19 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
         if getattr(self._meta, 'search_min_length', 0) <= len(search) and hasattr(
                 self._meta, "search_fields"):
-            field_lookup_suffixes = (
-                'exact', 'contains', 'startswith',
-                'endswith', 'search', 'regex')
             q = Q()
-            for field_lookup in self._meta.search_fields:
-                if not field_lookup.endswith(field_lookup_suffixes):
-                        # if no suffix provided, append "__icontains"
-                    field_lookup += '__icontains'
-                q |= Q(**{field_lookup: search})
+            q = self.filter_through_field_lookup(search)
             qs = qs.filter(q)
 
-        return qs
-
-    def filter_by_filters(self, qs):
-        return qs
-
-    def filter_queryset(self, qs):
-        qs = self.filter_by_search(qs)
-        qs = self.filter_by_filters(qs)
         return qs
 
     def prepare_results(self, qs):
         values_to_get = set(self.get_values_list())
         values_to_get = values_to_get.union(set(self.get_referenced_values()))
-        values_dicts = qs.values(*values_to_get)
+        self.values_dicts = qs.values(*values_to_get)
 
-        rendered_values = self.render_columns(values_dicts)
-        data = []
-        for row in rendered_values:
-            data.append(row)
+        rendered_values = self.render_columns()
+        data = [row for row in rendered_values]
         return data
 
     def get_data(self, request):
@@ -325,7 +202,7 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
         """
         try:
             qs = self.get_initial_queryset(request)
-            qs = self.filter_queryset(qs)
+            qs = self.filter_by_search(qs)
             qs = self.ordering(qs)
             data = self.prepare_results(qs)
         except Exception as e:
@@ -341,17 +218,12 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
         json_response = dict(draw=0, recordsTotal=0, recordsFiltered=0, data=[])
 
-        filter_params = {}
         additional_data = request.GET.get("additional_data")
-        if additional_data:
-            filter_params = parse(additional_data)
+        filter_params = parse(additional_data) if additional_data else {}
         try:
             qs = self.get_initial_queryset(request)
-
-            # number of records before filtering
             total_records = qs.count()
-
-            qs = self.filter_queryset(qs)
+            qs = self.filter_by_search(qs)
             if filter_params:
                 qs = qs.filter(**filter_params)
 
@@ -361,13 +233,10 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
             qs = self.ordering(qs)
             qs = self.paging(qs)
             data = self.prepare_results(qs)
-
-            json_response.update(dict(
-                draw=int(self._querydict.get('draw', 0)),
-                recordsTotal=total_records,
-                recordsFiltered=total_display_records,
-                data=data
-            ))
+            json_response.update({"draw": int(self._querydict.get('draw', 0)),
+                                  "recordsTotal": total_records,
+                                  "recordsFiltered": total_display_records,
+                                  "data": data})
 
         except Exception as e:
             LOG.exception(str(e))
@@ -384,36 +253,40 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
 
 class Datatable(DatatableBase, DataResponse):
 
-    def datatable_config(self):
-        """
-        Returns the json config for the datatables init method in javascript
-        """
-        config = dict(
-            columns=list()
-        )
-
-        # Column config
+    def _config_columns(self):
+        columns = []
         for key, column in self.declared_fields.items():
-            column_config = dict()
+            column_config = {}
             if column.css_class:
                 column_config['className'] = column.css_class
             if key not in self._meta.order_columns:
                 column_config['orderable'] = False
-            config['columns'].append(column_config)
+            columns.append(column_config)
 
-        # Searching
+        return columns
+
+    def _config_order(self):
+        order = []
+        for order_col in self._meta.initial_order:
+            order_dir = 'asc'
+            if order_col.startswith('-'):
+                order_col = order_col[1:]
+                order_dir = 'desc'
+            declared_fields_keys = list(self.declared_fields.keys())
+            order_index = declared_fields_keys.index(order_col)
+            order.append([order_index, order_dir])
+
+        return order
+
+    def datatable_config(self):
+        """
+        Returns the json config for the datatables init method in javascript
+        """
+        config = {}
+
+        config['columns'] = self._config_columns()
         config['searching'] = self._meta.searching
-
-        # Ordering
-        config['order'] = []
-        if "initial_order" in self._meta:
-            for order_col in self._meta.initial_order:
-                order_dir = 'asc'
-                if order_col.startswith('-'):
-                    order_col = order_col[1:]
-                    order_dir = 'desc'
-                order_index = self.get_index_by_key(order_col)
-                config['order'].append([order_index, order_dir])
+        config['order'] = self._config_order() if "initial_order" in self._meta else []
 
         # Initial Display Length
         config['iDisplayLength'] = self._meta.get('initial_rows_displayed', 25)
@@ -430,11 +303,11 @@ class Datatable(DatatableBase, DataResponse):
         Render the javascript and html to create the datatable
         """
         template = select_template(['django_datatables/table.html'])
-        context = dict(
-            can_export_to_excel=self._meta.get('export_to_excel', False),
-            module=self.__module__,
-            name=self.__class__.__name__,
-            datatable=self,
-        )
+        context = {
+            "can_export_to_excel": self._meta.get('export_to_excel', False),
+            "module": self.__module__,
+            "name": self.__class__.__name__,
+            "datatable": self,
+        }
         template_content = template.render(context)
         return mark_safe(template_content)

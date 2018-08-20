@@ -1,9 +1,8 @@
 from datetime import datetime
-import json
 import logging
 
 from django.core.serializers.json import DjangoJSONEncoder
-from django.http import HttpResponse
+from django.http import JsonResponse
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.translation import ugettext as _
@@ -29,19 +28,9 @@ class LazyEncoder(DjangoJSONEncoder):
 
 class DataResponse(object):
 
-    def render_to_json_response(self, context):
-        """ Returns a JSON response containing 'context' as payload
-        """
-        response = HttpResponse(
-            context,
-            content_type='application/json',
-        )
-        add_never_cache_headers(response)
-        return response
-
     def create_excel_response(self, request):
         """
-
+        Return an excel writer as a response.
         """
         headers = self.get_column_titles()
         rows = self.get_data(request)
@@ -54,14 +43,7 @@ class DataResponse(object):
 
         return xlwriter.download(f'{title}-{datetime.now().strftime("%Y-%m-%d %H%m")}.xlsx')
 
-    def dispatch(self, request, *args, **kwargs):
-        self.request = request
-        response = None
-
-        if request.GET.get("export") == "excel":
-            return self.create_excel_response(request)
-
-        func_val = self.get_context_data(request)
+    def create_data_response(self, func_val, request):
         try:
             assert isinstance(func_val, dict)
             response = dict(func_val)
@@ -75,5 +57,17 @@ class DataResponse(object):
             msg = getattr(e, 'message', _('Internal error') + ': ') + str(e)
             response = {'result': 'error', 'sError': msg, 'text': msg}
 
-        dump = json.dumps(response, cls=LazyEncoder)
-        return self.render_to_json_response(dump)
+        return JsonResponse(response)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.request = request
+        response = None
+
+        if request.GET.get("export") == "excel":
+            return self.create_excel_response(request)
+
+        func_val = self.get_context_data(request)
+        response = self.create_data_response(func_val, request)
+
+        add_never_cache_headers(response)
+        return response
