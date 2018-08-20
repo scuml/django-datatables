@@ -14,3 +14,4 @@ pyquerystring = "*"
 [dev-packages]
 
 model-mommy = "*"
+packit = "*"
