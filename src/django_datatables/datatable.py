@@ -2,7 +2,6 @@
 Datatable classes
 """
 
-from collections import OrderedDict
 import logging
 from json import dumps
 import sys
@@ -96,8 +95,8 @@ class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
     def _render_link(self, column, ic):
         """ Call the render_link to wrap column in link tag """
         for ir, row_dict in enumerate(self.values_dicts):
-            rendered_columns[ir][ic] = column.render_link(
-                rendered_columns[ir][ic], row_dict)
+            self.rendered_columns[ir][ic] = column.render_link(
+                self.rendered_columns[ir][ic], row_dict)
 
     def render_columns(self):
         """

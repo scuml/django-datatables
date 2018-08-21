@@ -22,7 +22,7 @@ def read(fname):
 
 setup(
     name='classy-django-datatables',
-    version='1.0.7',
+    version='1.0.8',
     description='Create datatables quickly for django models.',
     url='https://github.com/scuml/django-datatables',
     long_description=read('README.md'),
