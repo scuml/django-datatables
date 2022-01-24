@@ -22,7 +22,7 @@ def read(fname):
 
 setup(
     name='classy-django-datatables',
-    version='1.0.8',
+    version='2.0.0',
     description='Create datatables quickly for django models.',
     url='https://github.com/scuml/django-datatables',
     long_description=read('README.md'),
@@ -36,9 +36,9 @@ setup(
     package_dir={"": "src"},
     package_data={'': ['LICENSE']},
 
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=[
-        'django>=2',
+        'django',
         'pyquerystring',
     ],
     include_package_data=True,
@@ -50,7 +50,12 @@ setup(
         'Topic :: Internet :: WWW/HTTP',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.6',
+        'Framework :: Django :: 2.2',
+        'Framework :: Django :: 3.2',
+        'Framework :: Django :: 4.0',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 )

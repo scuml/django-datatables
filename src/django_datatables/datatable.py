@@ -10,7 +10,6 @@ from pyquerystring import parse
 
 from django.conf import settings
 from django.db.models import Q
-from django.utils import six
 from django.utils.safestring import mark_safe
 from django.views.debug import ExceptionReporter
 from django.template.loader import select_template
@@ -22,7 +21,7 @@ from .datatable_meta import DeclarativeFieldsMetaclass
 LOG = logging.getLogger(__name__)
 
 
-class DatatableBase(six.with_metaclass(DeclarativeFieldsMetaclass)):
+class DatatableBase(metaclass=DeclarativeFieldsMetaclass):
     """ JSON data for datatables
     """
     class Meta:

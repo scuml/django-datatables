@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.test import Client, TestCase
 from django.contrib.auth.models import User
 
-from model_mommy import mommy
+from model_bakery import baker
 
 
 def get_data_url(response):
@@ -47,7 +47,7 @@ class TestViews(TestCase):
         self.assertEqual(datatable['data'], [])
 
         # Add an object
-        mommy.make('sample.Employee', _quantity=3)
+        baker.make('sample.Employee', _quantity=3)
 
         # Fetch the ajax
         # Should be have somethin'
@@ -71,7 +71,7 @@ class TestViews(TestCase):
         self.client.login(username=user, password='test')
 
         # Add an object
-        mommy.make(
+        baker.make(
             'sample.Employee',
             first_name="Fred",
             _quantity=3

@@ -3,9 +3,15 @@ import logging
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import JsonResponse
-from django.utils.encoding import force_text
+try:
+    from django.utils.encoding import force_str
+except ImportError:
+    from django.utils.encoding import force_text as force_str
 from django.utils.functional import Promise
-from django.utils.translation import ugettext as _
+try:
+    from django.utils.translation import gettext as _
+except ImportError:
+    from django.utils.translation import ugettext as _
 from django.utils.cache import add_never_cache_headers
 
 try:
@@ -22,7 +28,7 @@ class LazyEncoder(DjangoJSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, Promise):
-            return force_text(obj)
+            return force_str(obj)
         return super(LazyEncoder, self).default(obj)
 
 

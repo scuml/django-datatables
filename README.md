@@ -263,3 +263,8 @@ More information regarding mixins can be found at the official
         ...
 ```
 
+
+Testing
+-----------
+
+This project uses tox to test with a build matrix to ensure that the project works with multiple versions of Python and Django. Run `tox` to test. Run `tox --skip-missing-interpreters` to avoid failures if you don't have a particular Python version installed. See other options in the [tox documentation](https://tox.wiki/en/latest/config.html).

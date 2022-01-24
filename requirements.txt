@@ -1,2 +1,0 @@
-Django==2.1
-pyquerystring==1.0.2
