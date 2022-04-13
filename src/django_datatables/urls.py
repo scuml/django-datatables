@@ -1,10 +1,12 @@
-from __future__ import unicode_literals
-from django.conf.urls import *
+try:
+    from django.urls import re_path
+except ImportError:
+    from django.conf.urls import re_path
 
 from .views import datatable_manager
 
 app_name = 'django_datatables'
 
 urlpatterns = [
-    url(r'^data/$', datatable_manager, name="datatable_manager")
+    re_path(r'^data/$', datatable_manager, name="datatable_manager")
 ]
